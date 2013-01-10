@@ -1,15 +1,26 @@
 # Use this file to define your own rules.
 
-## Install dir
+## Overwrite default values
 
-#INSTALLDIR = /usr/local/bin
+#BINDIR = ./bin/$(shell uname)
+#CFLAGS = -Wall -Werror -pedantic
+
+## Setup an installation directory
+
+#INSTALLDIR = ~/bin
+
+## Set debugging active by default (use `make DEBUG=0` to overwrite).
+
+#ifndef DEBUG
+#DEBUG = 1
+#endif
 
 ## Add your flags
 
-#LIBS   += -lpthread
+#LDLIBS += -lpthread
 #CFLAGS += -I$(SRCDIR)/includes
 
-## Rules
+## If INSTALLDIR is defined, make install one of the default actions on `make`.
 
 #ifdef INSTALLDIR
 #default: install
