@@ -7,7 +7,7 @@
 
 ## Setup an installation directory
 
-#INSTALLDIR = ~/bin
+INSTALLDIR = ~/bin
 
 ## Set debugging active by default (use `make DEBUG=0` to overwrite).
 

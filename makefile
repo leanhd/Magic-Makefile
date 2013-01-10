@@ -55,8 +55,7 @@ distclean: clean
 	@[ -e makefile.d ] && rm makefile.d;
 
 $(BINDIR):
-	@echo "Creating directory $@";
-	@if [ ! -d $@ ]; then mkdir -p $@; fi;
+	@if [ ! -d $@ ]; then echo "Creating directory $@"; mkdir -p $@; fi;
 
 makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 	@echo "Building dependencies";
@@ -91,8 +90,7 @@ makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 ifdef INSTALLDIR
 
 $(INSTALLDIR):
-	@echo "Creating directory $@";
-	@if [ ! -d $@ ]; then mkdir -p $@; fi;
+	@if [ ! -d $@ ]; then echo "Creating directory $@"; mkdir -p $@; fi;
 
 .PHONY: install install_exec
 install: |$(INSTALLDIR)
