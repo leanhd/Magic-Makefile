@@ -59,6 +59,8 @@ $(BINDIR):
 	@if [ ! -d $@ ]; then echo "Creating directory $@"; mkdir -p $@; fi;
 	@touch $@;
 
+## Dependencies file creation
+
 makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 	@echo "Building dependencies";
 	@TEMP_FILE=`mktemp /tmp/makefile.d.XXXXXX`; \
@@ -89,7 +91,10 @@ makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 	done; \
 	mv $$TEMP_FILE $@;
 
+## Distributables files creation
+
 .PHONY: dist distclean tar bz2
+
 dist: tar bz2
 tar: makefile.d clean
 	@echo "Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.gz"
@@ -104,28 +109,26 @@ distclean:
 	@rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz
 	@rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2
 
-ifdef INSTALLDIR
+## Installation rules
 
-$(INSTALLDIR):
-	@if [ ! -d $@ ]; then echo "Creating directory $@"; mkdir -p $@; fi;
-	@touch $@;
+ifndef DESTDIR
+DESTDIR=/usr/local
+endif
 
-.PHONY: install install_exec
-install: |$(INSTALLDIR)
+.PHONY: install install_exec uninstall uninstall_exec
+
 install: install_exec
 install_exec: exec
-	@echo "Installing binaries into $(INSTALLDIR)"
-	@cp $(BINDIR)/* $(INSTALLDIR)
+	@echo "Installing binaries into $(DESTDIR)/bin"
+	@mkdir -p $(DESTDIR)/bin
+	@cp $(BINDIR)/* $(DESTDIR)/bin
 
-.PHONY: uninstall uninstall_exec
 uninstall: uninstall_exec
 uninstall_exec: makefile.d
-	@echo "Removing binaries from $(INSTALLDIR)"
+	@echo "Uninstalling binaries from $(DESTDIR)/bin"
 	@for f in `$(MAKE) -f makefile.d -pn | grep '^exec:' | cut -d: -f2`; do \
-		if [ -f $(INSTALLDIR)/$$f ]; then \
-			echo "  Uninstalling $$f"; \
-			rm $(INSTALLDIR)/$$f; \
+		if [ -f $(DESTDIR)/bin/$$f ]; then \
+			echo "  Removing $$f"; \
+			rm $(DESTDIR)/bin/$$f; \
 		fi; \
 	done;
-
-endif

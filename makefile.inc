@@ -12,9 +12,11 @@
 
 #EXCLUDES += --exclude "*.tex"
 
-## Setup an installation directory
+## Change the installation directory (use `make DESTDIR=/my/path` to overwrite).
 
-INSTALLDIR = ~/bin
+ifndef DESTDIR
+DESTDIR = ~
+endif
 
 ## Set debugging active by default (use `make DEBUG=0` to overwrite).
 
@@ -26,9 +28,3 @@ INSTALLDIR = ~/bin
 
 #LDLIBS += -lpthread
 #CFLAGS += -I$(SRCDIR)/includes
-
-## If INSTALLDIR is defined, make install one of the default actions on `make`.
-
-#ifdef INSTALLDIR
-#default: install
-#endif
