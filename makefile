@@ -8,14 +8,19 @@
 #
 # Use makefile.inc to write you own rules or to overwrite the default values defined here.
 
-SRCDIR  =./src
-BINDIR  =./bin
+PROJECT  =$(shell basename $(CURDIR))
+PROJECT_VERSION=1.0
 
-SHELL   =/bin/bash
-CC      =/usr/bin/gcc
-CFLAGS  =-Wall -Wextra -Werror
-LDFLAGS =
-LDLIBS  =
+SRCDIR   =./src
+BINDIR   =./bin
+
+SHELL    =/bin/bash
+CC       =/usr/bin/gcc
+CFLAGS   =-Wall -Wextra -Werror
+LDFLAGS  =
+LDLIBS   =
+
+EXCLUDES =--exclude "*~" --exclude ".*"
 
 # make "all" the default target
 .PHONY: default all exec
@@ -40,22 +45,19 @@ endif
 
 .SUFFIXES: .c .o
 %.o: %.c
-	@echo "  Compiling `basename $<`";
+	@echo "  Compiling $<";
 	@$(CC) $(CFLAGS) -o $@ -c $<;
 
 .PHONY: clean
 clean:
-	@echo "Cleaning compiled files";
+	@echo "Deleting object files";
 	@find $(SRCDIR) -name "*.o" -exec rm {} \;
-
-.PHONY: distclean
-distclean: clean
-	@echo "Removing executables";
+	@echo "Deleting executables";
 	@find $(BINDIR) -type f -exec rm {} \;
-	@[ -e makefile.d ] && rm makefile.d;
 
 $(BINDIR):
 	@if [ ! -d $@ ]; then echo "Creating directory $@"; mkdir -p $@; fi;
+	@touch $@;
 
 makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 	@echo "Building dependencies";
@@ -67,7 +69,7 @@ makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 	for file in `grep -Hs "main(" $^ | cut -f1 -d':'`; do \
 		execname=`basename $$file .c`; \
 		objs="$${file/%.c/.o}"; \
-		for header in `$(CC) $(CFLAGS) -MM $$file | tr " " "\\n" | grep ".h$$" | sort | uniq | tr "\\n" " "`; do \
+		for header in `$(CC) $(CFLAGS) -MM $$file | tr " " "\\n" | grep ".h$$" | sort -u | tr "\\n" " "`; do \
 			if [ -f $${header/%.h/.c} ]; then \
 				objs+=" $${header/%.h/.o}"; \
 			fi; \
@@ -77,20 +79,36 @@ makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 				fi; \
 			done; \
 		done; \
-		objs=`echo -n "$$objs"  | tr " " "\\n" | sort | uniq | tr "\\n" " "`; \
+		objs=`echo -n "$$objs"  | tr " " "\\n" | sort -u | tr "\\n" " "`; \
 		echo "exec: $$execname" >> $$TEMP_FILE; \
 		echo "$$execname: \$$(BINDIR)/$$execname" >> $$TEMP_FILE; \
 		echo "\$$(BINDIR)/$$execname: $$objs |\$$(BINDIR)" >> $$TEMP_FILE; \
-		echo "	@echo \"Linking $$execname\";" >> $$TEMP_FILE; \
+		echo "	@echo \"  Linking   \$$@\";" >> $$TEMP_FILE; \
 		echo "	@\$$(CC) \$$(LDFLAGS) -o \$$@ $$objs \$$(LDLIBS);" >> $$TEMP_FILE; \
 		echo >> $$TEMP_FILE; \
 	done; \
-	mv $$TEMP_FILE $@; \
+	mv $$TEMP_FILE $@;
+
+.PHONY: dist distclean tar bz2
+dist: tar bz2
+tar: makefile.d clean
+	@echo "Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.gz"
+	@tar -zco -C .. $(EXCLUDES) -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz $(PROJECT)
+bz2: makefile.d clean
+	@echo "Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2"
+	@tar -jco -C .. $(EXCLUDES) -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2 $(PROJECT)
+
+clean: distclean
+distclean:
+	@echo "Deleting dist files"
+	@rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz
+	@rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2
 
 ifdef INSTALLDIR
 
 $(INSTALLDIR):
 	@if [ ! -d $@ ]; then echo "Creating directory $@"; mkdir -p $@; fi;
+	@touch $@;
 
 .PHONY: install install_exec
 install: |$(INSTALLDIR)

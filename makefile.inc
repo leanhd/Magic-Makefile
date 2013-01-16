@@ -2,8 +2,15 @@
 
 ## Overwrite default values
 
-#BINDIR = ./bin/$(shell uname)
-#CFLAGS = -Wall -Werror -pedantic
+#BINDIR  =./bin/$(shell uname)
+#CFLAGS  =-Wall -Werror -pedantic
+
+#PROJECT =my_project
+#PROJECT_VERSION=1.0
+
+## Exclude files from the tar / bz2 archives
+
+#EXCLUDES += --exclude "*.tex"
 
 ## Setup an installation directory
 
