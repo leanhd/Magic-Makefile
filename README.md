@@ -12,3 +12,7 @@ default).
 If you which to change the default behaviour of the makefile (like the DEBUG
 macro, defiled as 0 by default) or add your own rules, please do so in
 `makefile.inc`.
+
+You should not use special characters or blanc characters (space, tab, new line)
+in your file names. The project name will be the container folder's name by
+default.

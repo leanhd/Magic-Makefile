@@ -8,7 +8,7 @@
 #
 # Use makefile.inc to write you own rules or to overwrite the default values defined here.
 
-PROJECT  =$(shell basename $(CURDIR))
+PROJECT  =$(shell basename `realpath $(CURDIR)`)
 PROJECT_VERSION=1.0
 
 SRCDIR   =./src
@@ -64,7 +64,7 @@ $(BINDIR):
 makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 	@echo "Building dependencies";
 	@TEMP_FILE=`mktemp /tmp/makefile.d.XXXXXX`; \
-	for file in $^; do  \
+	for file in $^; do \
 		$(CC) $(CFLAGS) -MM -MT $${file/%.c/.o} $$file | tr -d "\\n\\\\" >> $$TEMP_FILE; \
 		echo -e "\n" >> $$TEMP_FILE; \
 	done; \
