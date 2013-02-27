@@ -1,5 +1,5 @@
 # Author Matthieu Sieben (http://matthieusieben.com)
-# Version 23/10/2012
+# Version 27/2/2013
 #
 # This makefile is licensed under the Creative Commons Attribution
 # Partage dans les Mêmes Conditions 2.0 Belgique License.
@@ -8,19 +8,19 @@
 #
 # Use makefile.inc to write you own rules or to overwrite the default values defined here.
 
-PROJECT  =$(shell basename `realpath $(CURDIR)`)
-PROJECT_VERSION=1.0
+PROJECT  = $(shell basename `realpath $(CURDIR)`)
+PROJECT_VERSION = 1.0
 
-SRCDIR   =./src
-BINDIR   =./bin
+SRCDIR   = ./src
+BINDIR   = ./bin
 
-SHELL    =/bin/bash
-CC       =/usr/bin/gcc
-CFLAGS   =-Wall -Wextra -Werror
+SHELL    = /bin/bash
+CC       = /usr/bin/gcc
+CFLAGS   = -Wall -Wextra -Werror
 LDFLAGS  =
 LDLIBS   =
 
-EXCLUDES =--exclude "*~" --exclude ".*"
+EXCLUDES = --exclude "*~" --exclude ".*"
 
 # make "all" the default target
 .PHONY: default all exec
@@ -50,9 +50,9 @@ endif
 
 .PHONY: clean
 clean:
-	@echo "Deleting object files";
+	@echo "Deleting object files"
 	@find $(SRCDIR) -name "*.o" -exec rm {} \;
-	@echo "Deleting executables";
+	@echo "Deleting executables"
 	@find $(BINDIR) -type f -exec rm {} \;
 
 $(BINDIR):
@@ -98,37 +98,37 @@ makefile.d: $(shell find $(SRCDIR) -type f -name "*.c")
 dist: tar bz2
 tar: makefile.d clean
 	@echo "Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.gz"
-	@tar -zco -C .. $(EXCLUDES) -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz $(PROJECT)
+	@tar -zco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.gz" "$(shell basename $(CURDIR))"
 bz2: makefile.d clean
 	@echo "Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2"
-	@tar -jco -C .. $(EXCLUDES) -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2 $(PROJECT)
+	@tar -jco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.bz2" "$(shell basename $(CURDIR))"
 
-clean: distclean
-distclean:
+distclean: clean
+	@echo "Deleting dependencies file"
+	@rm -f makefile.d
 	@echo "Deleting dist files"
 	@rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz
 	@rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2
 
 ## Installation rules
-
-ifndef DESTDIR
-DESTDIR=/usr/local
-endif
+ifdef DESTDIR
 
 .PHONY: install install_exec uninstall uninstall_exec
 
 install: install_exec
 install_exec: exec
-	@echo "Installing binaries into $(DESTDIR)/bin"
-	@mkdir -p $(DESTDIR)/bin
-	@cp $(BINDIR)/* $(DESTDIR)/bin
+	@echo "Installing binaries into $(DESTDIR)"
+	@mkdir -p $(DESTDIR)
+	@cp $(BINDIR)/* $(DESTDIR)
 
 uninstall: uninstall_exec
 uninstall_exec: makefile.d
-	@echo "Uninstalling binaries from $(DESTDIR)/bin"
+	@echo "Uninstalling binaries from $(DESTDIR)"
 	@for f in `$(MAKE) -f makefile.d -pn | grep '^exec:' | cut -d: -f2`; do \
-		if [ -f $(DESTDIR)/bin/$$f ]; then \
+		if [ -f $(DESTDIR)/$$f ]; then \
 			echo "  Removing $$f"; \
-			rm $(DESTDIR)/bin/$$f; \
+			rm $(DESTDIR)/$$f; \
 		fi; \
 	done;
+
+endif
