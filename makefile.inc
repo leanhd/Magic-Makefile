@@ -10,12 +10,12 @@
 
 ## Exclude files from the tar / bz2 archives
 
-#EXCLUDES += --exclude "*.tex"
+EXCLUDES += --exclude "*.bak"
 
-## Change the installation directory (use `make DESTDIR=/my/path` to overwrite).
+## Setup a default installation directory (use `make install PREFIX=/my/path` to overwrite).
 
-ifndef DESTDIR
-DESTDIR = ~
+ifndef PREFIX
+PREFIX = /usr/local
 endif
 
 ## Set debugging active by default (use `make DEBUG=0` to overwrite).
@@ -24,7 +24,11 @@ endif
 #DEBUG = 1
 #endif
 
-## Add your flags
+## If you which to avoid installing you test binaries, you may define the name of the executable you which to install
+
+#INSTALL_BINARIES = my_main_bin
+
+## Add specific flags
 
 #LDLIBS += -lpthread
 #CFLAGS += -I$(SRCDIR)/includes

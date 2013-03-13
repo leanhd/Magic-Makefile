@@ -50,8 +50,8 @@ endif
 
 ## Common macros
 
-comma		= ,
 empty		=
+comma		= ,
 space		= $(empty) $(empty)
 
 FAIL_COLOR	= $(shell tput setaf 1)
@@ -75,7 +75,7 @@ run_command = \
 		exit $$errcode; \
 	fi;
 
-# Creates the directory $1
+# Creates the directory $1 (and prints a message)
 create_dir = \
 	@$(call run_command,Creating directory $(1),mkdir -p $(1); touch $(1);)
 
@@ -91,6 +91,41 @@ clean:
 
 $(BINDIR):
 	@$(call create_dir,$@)
+
+## Installation rules
+
+install:
+uninstall:
+
+# Prefix directory
+ifdef PREFIX
+$(PREFIX):
+	@$(call create_dir,$@)
+
+ifndef INSTALL_BINDIR
+INSTALL_BINDIR	= $(PREFIX)/bin
+endif
+endif
+
+# Binaires install directory
+ifdef INSTALL_BINDIR
+
+install: install_exec
+uninstall: uninstall_exec
+
+$(INSTALL_BINDIR):
+	@$(call create_dir,$@)
+
+ifndef INSTALL_BINARIES
+INSTALL_BINARIES = $(shell $(MAKE) -f makefile.d -pn | grep '^exec:' | cut -d: -f2 | sed -r 's/ *(.*) */\1/g')
+endif
+
+install_exec: $(INSTALL_BINARIES) |$(INSTALL_BINDIR)
+	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))} $(INSTALL_BINDIR))
+uninstall_exec: makefile.d
+	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),rm -f $(INSTALL_BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))})
+
+endif # INSTALL_BINDIR
 
 ## Dependencies file creation
 
@@ -143,48 +178,3 @@ bz2: makefile.d clean
 distclean: clean
 	@$(call run_command,Deleting dependencies file,rm -f makefile.d)
 	@$(call run_command,Deleting dist files,rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz && rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2)
-
-## Installation rules
-
-ifdef DESTDIR
-
-install: install_exec
-uninstall: uninstall_exec
-
-$(DESTDIR):
-	@$(call create_dir,$@)
-
-ifdef INSTBIN
-install_exec: $(INSTBIN) |$(DESTDIR)
-	@$(call run_command,Installing binaries into $(DESTDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTBIN))} $(DESTDIR))
-#	@echo "Installing binaries into $(DESTDIR)"
-#	@for f in $(INSTBIN); do \
-#		if [ -f $(BINDIR)/$$f ]; then \
-#			echo "  Installing $$f"; \
-#			cp $(BINDIR)/$$f $(DESTDIR); \
-#		fi; \
-#	done;
-
-uninstall_exec: makefile.d
-	@echo "Uninstalling binaries from $(DESTDIR)"
-	@for f in $(INSTBIN); do \
-		if [ -f $(DESTDIR)/$$f ]; then \
-			echo "  Removing $$f"; \
-			rm $(DESTDIR)/$$f; \
-		fi; \
-	done;
-else
-install_exec: exec |$(DESTDIR)
-	@$(call run_command,Installing binaries into $(DESTDIR),cp $(BINDIR)/* $(DESTDIR))
-
-uninstall_exec: makefile.d
-	@echo "Uninstalling binaries from $(DESTDIR)"
-	@for f in `$(MAKE) -f makefile.d -pn | grep '^exec:' | cut -d: -f2`; do \
-		if [ -f $(DESTDIR)/$$f ]; then \
-			echo "  Removing $$f"; \
-			rm $(DESTDIR)/$$f; \
-		fi; \
-	done;
-endif # INSTBIN
-
-endif # DESTDIR
