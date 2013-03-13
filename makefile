@@ -65,14 +65,15 @@ run_command = \
 	msg="$(1)"; \
 	padlen=$$(( $(NBR_COLUMNS) - $${\#msg} )); \
 	echo -n "$$msg"; \
-	if err=`$(2) 2>&1`; then \
+	output=$$({ $(2) } 2>&1); \
+	RETVAL=$$?; \
+	if [ $$RETVAL -eq 0 ]; then \
 		printf '%s%*s%s\n' "$(OK_COLOR)" $$padlen "[DONE]" "$(RST_COLOR)"; \
 	else \
-		errcode=$$?; \
 		printf '%s%*s%s\n' "$(FAIL_COLOR)" $$padlen "[FAIL]" "$(RST_COLOR)"; \
-		echo " $(INFO_COLOR)[COMMAND]$(RST_COLOR)" "$(2)"; \
-		echo " $(INFO_COLOR)[ERROR]$(RST_COLOR)  " "$$err" >&2; \
-		exit $$errcode; \
+		echo " $(INFO_COLOR)[ERROR]$(RST_COLOR)  " "$$output" >&2; \
+		echo " $(INFO_COLOR)[COMMAND]$(RST_COLOR)" '$(subst ','"'"',$(2))'; \
+		exit $$RETVAL; \
 	fi;
 
 # Creates the directory $1 (and prints a message)
@@ -83,11 +84,11 @@ create_dir = \
 
 .SUFFIXES: .c .o
 %.o: %.c
-	@$(call run_command,  Compiling $<,$(CC) $(CFLAGS) -o $@ -c $<)
+	@$(call run_command,  Compiling $<,$(CC) $(CFLAGS) -o $@ -c $<;)
 
 clean:
-	@$(call run_command,Deleting object files,find $(SRCDIR) -name "*.o" -exec rm {} \;)
-	@$(call run_command,Deleting executables,find $(BINDIR) -type f -exec rm {} \;)
+	@$(call run_command,Deleting object files,find $(SRCDIR) -name "*.o" -exec rm {} \;;)
+	@$(call run_command,Deleting executables,find $(BINDIR) -type f -exec rm {} \;;)
 
 $(BINDIR):
 	@$(call create_dir,$@)
@@ -97,7 +98,6 @@ $(BINDIR):
 install:
 uninstall:
 
-# Prefix directory
 ifdef PREFIX
 $(PREFIX):
 	@$(call create_dir,$@)
@@ -107,7 +107,6 @@ INSTALL_BINDIR	= $(PREFIX)/bin
 endif
 endif
 
-# Binaires install directory
 ifdef INSTALL_BINDIR
 
 install: install_exec
@@ -121,32 +120,48 @@ INSTALL_BINARIES = $(shell $(MAKE) -f makefile.d -pn | grep '^exec:' | cut -d: -
 endif
 
 install_exec: $(INSTALL_BINARIES) |$(INSTALL_BINDIR)
-	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))} $(INSTALL_BINDIR))
+	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))} $(INSTALL_BINDIR);)
 uninstall_exec: makefile.d
-	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),rm -f $(INSTALL_BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))})
+	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),rm -f $(INSTALL_BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))};)
 
 endif # INSTALL_BINDIR
 
-## Dependencies file creation
+## Distributables
+
+dist: tar bz2
+tar: makefile.d clean
+	@$(call run_command,  Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.gz,tar -zco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.gz" "$(shell basename $(CURDIR))";)
+
+bz2: makefile.d clean
+	@$(call run_command,  Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2,tar -jco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.bz2" "$(shell basename $(CURDIR))";)
+
+distclean: clean
+	@$(call run_command,Deleting dependencies file,rm -f makefile.d;)
+	@$(call run_command,Deleting dist files,rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz && rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2;)
+
+## Dependencies
 
 deps:
-	@$(call create_dependencies_file)
+	@$(call run_command,Building dependencies,eval $(build_dependencies_file))
 
 makefile.d:
-	@$(call create_dependencies_file)
+	@$(call run_command,Building dependencies,eval $(build_dependencies_file))
 
-create_dependencies_file = \
-	echo "Building dependencies"; \
+build_dependencies_file = \
 	TEMP_FILE=`mktemp /tmp/makefile.d.XXXXXX`; \
 	C_FILES=`find $(SRCDIR) -type f -name "*.c"`; \
 	for file in $$C_FILES; do \
 		$(CC) $(CFLAGS) -MM -MT $${file/%.c/.o} $$file | tr -d "\\n\\\\" >> $$TEMP_FILE; \
+		[ $${PIPESTATUS[0]} -ne 0 ] && exit -1; \
 		echo -e "\n" >> $$TEMP_FILE; \
 	done; \
-	for file in `grep -Hs " main(" $$C_FILES | cut -f1 -d':'`; do \
+	main_files=`grep -Hs " main(" $$C_FILES | cut -f1 -d':'`; \
+	for file in $$main_files; do \
 		execname=`basename $$file .c`; \
 		objs="$${file/%.c/.o}"; \
-		for header in `$(CC) $(CFLAGS) -MM $$file | tr " " "\\n" | grep ".h$$" | sort -u | tr "\\n" " "`; do \
+		headers=`$(CC) $(CFLAGS) -MM $$file | tr " " "\\n" | grep ".h$$" | sort -u | tr "\\n" " "; exit $${PIPESTATUS[0]};`; \
+		[ $$? -ne 0 ] && exit -1; \
+		for header in $$headers; do \
 			if [ -f $${header/%.h/.c} ]; then \
 				objs+=" $${header/%.h/.o}"; \
 			fi; \
@@ -160,21 +175,9 @@ create_dependencies_file = \
 		echo "exec: $$execname" >> $$TEMP_FILE; \
 		echo "$$execname: \$$(BINDIR)/$$execname" >> $$TEMP_FILE; \
 		echo "\$$(BINDIR)/$$execname: $$objs |\$$(BINDIR)" >> $$TEMP_FILE; \
-		echo "	@\$$(call run_command, Linking \$$@,\$$(CC) \$$(LDFLAGS) -o \$$@ $$^)" >> $$TEMP_FILE; \
+		echo "	@\$$(call run_command, Linking \$$@,\$$(CC) \$$(LDFLAGS) -o \$$@ $$^;)" >> $$TEMP_FILE; \
 		echo >> $$TEMP_FILE; \
 	done; \
 	cp $$TEMP_FILE makefile.d; \
-	rm $$TEMP_FILE;
-
-## Distributables files creation
-
-dist: tar bz2
-tar: makefile.d clean
-	@$(call run_command,  Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.gz,tar -zco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.gz" "$(shell basename $(CURDIR))")
-
-bz2: makefile.d clean
-	@$(call run_command,  Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2,tar -jco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.bz2" "$(shell basename $(CURDIR))")
-
-distclean: clean
-	@$(call run_command,Deleting dependencies file,rm -f makefile.d)
-	@$(call run_command,Deleting dist files,rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz && rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2)
+	rm $$TEMP_FILE; \
+	exit 0;
