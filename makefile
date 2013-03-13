@@ -60,19 +60,19 @@ INFO_COLOR	= $(shell tput setaf 4)
 RST_COLOR	= $(shell tput sgr0)
 NBR_COLUMNS	= $(shell tput cols)
 
-# Prints the message in $1, runs the command in $2 then prints DONE or FAIL
+# Prints the message in $1, runs the command in $2 then prints DONE or FAILED
 run_command = \
 	msg="$(1)"; \
 	padlen=$$(( $(NBR_COLUMNS) - $${\#msg} )); \
 	echo -n "$$msg"; \
-	output=$$({ $(2) } 2>&1); \
+	output=$$({ $(2) } 2>&1; exit $$?;); \
 	RETVAL=$$?; \
 	if [ $$RETVAL -eq 0 ]; then \
 		printf '%s%*s%s\n' "$(OK_COLOR)" $$padlen "[DONE]" "$(RST_COLOR)"; \
 	else \
-		printf '%s%*s%s\n' "$(FAIL_COLOR)" $$padlen "[FAIL]" "$(RST_COLOR)"; \
+		printf '%s%*s%s\n' "$(FAIL_COLOR)" $$padlen "[FAILED]" "$(RST_COLOR)"; \
 		echo " $(INFO_COLOR)[ERROR]$(RST_COLOR)  " "$$output" >&2; \
-		echo " $(INFO_COLOR)[COMMAND]$(RST_COLOR)" '$(subst ','"'"',$(2))'; \
+		echo " $(INFO_COLOR)[COMMAND]$(RST_COLOR)" '$(subst ','"'"',$(2))' >&2; \
 		exit $$RETVAL; \
 	fi;
 
@@ -152,7 +152,7 @@ build_dependencies_file = \
 	C_FILES=`find $(SRCDIR) -type f -name "*.c"`; \
 	for file in $$C_FILES; do \
 		$(CC) $(CFLAGS) -MM -MT $${file/%.c/.o} $$file | tr -d "\\n\\\\" >> $$TEMP_FILE; \
-		[ $${PIPESTATUS[0]} -ne 0 ] && exit -1; \
+		[ $${PIPESTATUS[0]} -ne 0 ] && rm -f $$TEMP_FILE && exit -1; \
 		echo -e "\n" >> $$TEMP_FILE; \
 	done; \
 	main_files=`grep -Hs " main(" $$C_FILES | cut -f1 -d':'`; \
@@ -160,7 +160,7 @@ build_dependencies_file = \
 		execname=`basename $$file .c`; \
 		objs="$${file/%.c/.o}"; \
 		headers=`$(CC) $(CFLAGS) -MM $$file | tr " " "\\n" | grep ".h$$" | sort -u | tr "\\n" " "; exit $${PIPESTATUS[0]};`; \
-		[ $$? -ne 0 ] && exit -1; \
+		[ $$? -ne 0 ] && rm -f $$TEMP_FILE && exit -1; \
 		for header in $$headers; do \
 			if [ -f $${header/%.h/.c} ]; then \
 				objs+=" $${header/%.h/.o}"; \
