@@ -8,22 +8,23 @@
 #
 # Use makefile.inc to write you own rules or to overwrite the default values defined here.
 
-PROJECT  = $(shell basename "`realpath $(CURDIR)`")
-PROJECT_VERSION = 1.0
+PROJECT		:= $(shell basename "$(CURDIR)")
+PROJECT_VERSION := 1.0
 
-SRCDIR   = ./src
-BINDIR   = ./bin
+SRCDIR		= ./src
+BINDIR		= ./bin
 
-SHELL    = /bin/bash
-CC       = /usr/bin/gcc
-CFLAGS   = -Wall -Wextra -Werror
-LDFLAGS  =
+CC			?= gcc
+SHELL		:= /bin/bash
+CFLAGS		:=
+LDFLAGS		:=
 
-EXCLUDES = --exclude "*~" --exclude ".*"
+EXCLUDES	:= --exclude "*~" --exclude ".*"
 
 # Phony rules
 .PHONY: deps
-.PHONY: default all exec clean
+.PHONY: default all exec
+.PHONY: clean clean_obj clean_exec
 .PHONY: dist distclean tar bz2
 .PHONY: install install_exec uninstall uninstall_exec
 
@@ -31,18 +32,18 @@ EXCLUDES = --exclude "*~" --exclude ".*"
 default: all
 all: exec
 
-# Inculde additionnal rules
+# Inculde external rules
 -include makefile.inc
--include makefile.d
+-include makefile.dep
 
 # Debugging is disabled by default
 ifndef DEBUG
-DEBUG = 0
+DEBUG := 0
 endif
 
 # Setup C flags
 ifneq ($(DEBUG), 0)
-	CFLAGS  += -ggdb -DDEBUG=$(DEBUG)
+	CFLAGS  += -ggdb -DDEBUG=1
 else
 	CFLAGS  += -O2 -DDEBUG=0
 	LDFLAGS += -O2
@@ -50,15 +51,15 @@ endif
 
 ## Common macros
 
-empty		=
-comma		= ,
-space		= $(empty) $(empty)
+empty		:=
+comma		:= ,
+space		:= $(empty) $(empty)
 
-FAIL_COLOR	= $(shell tput setaf 1)
-OK_COLOR	= $(shell tput setaf 2)
-INFO_COLOR	= $(shell tput setaf 4)
-RST_COLOR	= $(shell tput sgr0)
-NBR_COLUMNS	= $(shell tput cols)
+FAIL_COLOR	:= $(shell tput setaf 1)
+OK_COLOR	:= $(shell tput setaf 2)
+INFO_COLOR	:= $(shell tput setaf 4)
+RST_COLOR	:= $(shell tput sgr0)
+NBR_COLUMNS	:= $(shell tput cols)
 
 # Prints the message in $1, runs the command in $2 then prints DONE or FAILED
 run_command = \
@@ -71,8 +72,11 @@ run_command = \
 		printf '%s%*s%s\n' "$(OK_COLOR)" $$padlen "[DONE]" "$(RST_COLOR)"; \
 	else \
 		printf '%s%*s%s\n' "$(FAIL_COLOR)" $$padlen "[FAILED]" "$(RST_COLOR)"; \
-		echo " $(INFO_COLOR)[ERROR]$(RST_COLOR)  " "$$output" >&2; \
-		echo " $(INFO_COLOR)[COMMAND]$(RST_COLOR)" '$(subst ','"'"',$(2))' >&2; \
+		echo " $(INFO_COLOR)[ERROR]$(RST_COLOR)  " >&2; \
+		echo "$$output" >&2; \
+		echo " $(INFO_COLOR)[COMMAND]$(RST_COLOR)" >&2; \
+		echo '$(subst ','"'"',$(2))' >&2; \
+		echo >&2; \
 		exit $$RETVAL; \
 	fi;
 
@@ -86,9 +90,14 @@ create_dir = \
 %.o: %.c
 	@$(call run_command,  Compiling $<,$(CC) $(CFLAGS) -o $@ -c $<;)
 
-clean:
-	@$(call run_command,Deleting object files,find $(SRCDIR) -name "*.o" -exec rm {} \;;)
-	@$(call run_command,Deleting executables,find $(BINDIR) -type f -exec rm {} \;;)
+clean: clean_obj clean_exec
+
+clean_exec:
+	@$(call run_command,Deleting executables,if [ -d $(BINDIR) ]; then rm -r $(BINDIR); fi;)
+
+clean_obj:
+	@$(call run_command,Deleting object files,find $(SRCDIR) -name "*.o" -exec rm {} \; ;)
+
 
 $(BINDIR):
 	@$(call create_dir,$@)
@@ -103,7 +112,7 @@ $(PREFIX):
 	@$(call create_dir,$@)
 
 ifndef INSTALL_BINDIR
-INSTALL_BINDIR	= $(PREFIX)/bin
+INSTALL_BINDIR  = $(PREFIX)/bin
 endif
 endif
 
@@ -115,28 +124,28 @@ uninstall: uninstall_exec
 $(INSTALL_BINDIR):
 	@$(call create_dir,$@)
 
-ifndef INSTALL_BINARIES
-INSTALL_BINARIES = $(shell $(MAKE) -f makefile.d -pn | grep '^exec:' | cut -d: -f2 | sed -r 's/ *(.*) */\1/g')
+ifndef INSTALL_BINS
+INSTALL_BINS = $(shell $(MAKE) -f makefile.dep -pn | grep '^exec:' | cut -d: -f2 | sed -e 's/^[ ]*//g' -e 's/[ ]*$$//g')
 endif
 
-install_exec: $(INSTALL_BINARIES) |$(INSTALL_BINDIR)
-	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))} $(INSTALL_BINDIR);)
-uninstall_exec: makefile.d
-	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),rm -f $(INSTALL_BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINARIES))};)
+install_exec: $(INSTALL_BINS) |$(INSTALL_BINDIR)
+	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINS))} $(INSTALL_BINDIR);)
+uninstall_exec: makefile.dep
+	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),rm -f $(INSTALL_BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINS))};)
 
 endif # INSTALL_BINDIR
 
 ## Distributables
 
 dist: tar bz2
-tar: makefile.d clean
+tar: makefile.dep clean
 	@$(call run_command,  Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.gz,tar -zco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.gz" "$(shell basename $(CURDIR))";)
 
-bz2: makefile.d clean
+bz2: makefile.dep clean
 	@$(call run_command,  Creating ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2,tar -jco -C .. $(EXCLUDES) -f "../$(PROJECT)_$(PROJECT_VERSION).tar.bz2" "$(shell basename $(CURDIR))";)
 
 distclean: clean
-	@$(call run_command,Deleting dependencies file,rm -f makefile.d;)
+	@$(call run_command,Deleting dependencies file,rm -f makefile.dep;)
 	@$(call run_command,Deleting dist files,rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.gz && rm -f ../$(PROJECT)_$(PROJECT_VERSION).tar.bz2;)
 
 ## Dependencies
@@ -144,11 +153,15 @@ distclean: clean
 deps:
 	@$(call run_command,Building dependencies,eval $(build_dependencies_file))
 
-makefile.d:
+makefile.dep:
 	@$(call run_command,Building dependencies,eval $(build_dependencies_file))
 
 build_dependencies_file = \
-	TEMP_FILE=`mktemp /tmp/makefile.d.XXXXXX`; \
+	TEMP_FILE=`mktemp /tmp/makefile.dep.XXXXXX`; \
+	echo "\# WARNING" >> $$TEMP_FILE; \
+	echo "\# This file was automatically generated by 'make'." >> $$TEMP_FILE; \
+	echo "\# Any modification may be overwritten." >> $$TEMP_FILE; \
+	echo >> $$TEMP_FILE; \
 	C_FILES=`find $(SRCDIR) -type f -name "*.c"`; \
 	for file in $$C_FILES; do \
 		$(CC) $(CFLAGS) -MM -MT $${file/%.c/.o} $$file | tr -d "\\n\\\\" >> $$TEMP_FILE; \
@@ -178,6 +191,6 @@ build_dependencies_file = \
 		echo "	@\$$(call run_command, Linking \$$@,\$$(CC) \$$(LDFLAGS) -o \$$@ $$^;)" >> $$TEMP_FILE; \
 		echo >> $$TEMP_FILE; \
 	done; \
-	cp $$TEMP_FILE makefile.d; \
+	cp $$TEMP_FILE makefile.dep; \
 	rm $$TEMP_FILE; \
 	exit 0;
