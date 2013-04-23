@@ -43,9 +43,9 @@ endif
 
 # Setup C flags
 ifneq ($(DEBUG), 0)
-	CFLAGS  += -ggdb -DDEBUG=1
+	CFLAGS  += -ggdb -DVERSION="\"$(VERSION)\"" -DDEBUG=1
 else
-	CFLAGS  += -O3 -DDEBUG=0
+	CFLAGS  += -O3 -DVERSION="\"$(VERSION)\"" -DDEBUG=0
 	LDFLAGS += -O3
 endif
 
@@ -133,9 +133,9 @@ INSTALL_BINS = $(shell $(MAKE) -f makefile.deps -pn | grep '^exec:' | cut -d: -f
 endif
 
 install_exec: $(INSTALL_BINS) |$(INSTALL_BINDIR)
-	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),cp $(BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINS))} $(INSTALL_BINDIR);)
+	@$(call run_command,Installing binaries into $(INSTALL_BINDIR),for e in $(INSTALL_BINS); do cp $(BINDIR)/$$e $(INSTALL_BINDIR); done;)
 uninstall_exec: makefile.deps
-	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),rm -f $(INSTALL_BINDIR)/{$(subst $(space),$(comma),$(INSTALL_BINS))};)
+	@$(call run_command,Uninstalling binaries from $(INSTALL_BINDIR),for e in $(INSTALL_BINS); do rm -f $(INSTALL_BINDIR)/$$e; done;)
 
 endif # INSTALL_BINDIR
 
@@ -191,7 +191,7 @@ build_dependencies_file = \
 					fi; \
 				done; \
 			done; \
-			objs="`echo -n $$objs | tr " " "\\n" | sed -e 's|^\./||' -e 's|/\\./|/|g' -e ':a' -e 's|[^/]*/\\.\\./||' -e 't a' | sort -u | tr "\\n" " "` "; \
+			objs="`echo -n $$objs | tr " " "\\n" | sed -e 's|^\\./||' -e 's|/\\./|/|g' -e ':a' -e 's|[^/]*/\\.\\./||' -e 't a' | sort -u | tr "\\n" " "` "; \
 		done; \
 		echo "exec: $$execname" >> $$TEMP_FILE; \
 		echo "$$execname: \$$(BINDIR)/$$execname" >> $$TEMP_FILE; \
